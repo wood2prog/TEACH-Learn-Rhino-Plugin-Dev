@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 0001: Your First Rhino Plugin</title>
+<style>
+  /* Tufte-inspired typography */
+  html { font-size: 15px; }
+  body {
+    font-family: "Georgia", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+    max-width: 720px;
+    margin: 4rem auto;
+    padding: 0 2rem;
+    color: #111;
+    line-height: 1.6;
+    counter-reset: sidenote;
+  }
+  h1 { font-size: 2.2rem; font-weight: 400; margin-top: 2.5rem; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.4rem; font-weight: 600; margin-top: 2.2rem; margin-bottom: 0.3rem; letter-spacing: 0.5px; }
+  h3 { font-size: 1.1rem; font-weight: 600; margin-top: 1.8rem; margin-bottom: 0.3rem; }
+  p, li { margin: 0.6rem 0; }
+  ul { padding-left: 1.2rem; }
+  ol { padding-left: 1.5rem; }
+  code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.85rem;
+    background: #f4f4f4;
+    padding: 2px 5px;
+    border-radius: 3px;
+  }
+  pre {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.8rem;
+    background: #f8f8f8;
+    border-left: 3px solid #ccc;
+    padding: 0.8rem 1rem;
+    overflow-x: auto;
+    line-height: 1.5;
+    margin: 1rem 0;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  blockquote {
+    border-left: 3px solid #e0e0e0;
+    padding-left: 1rem;
+    margin: 1.2rem 0;
+    color: #555;
+  }
+  a { color: #2563eb; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .subtitle { font-style: italic; color: #666; margin-top: -0.3rem; margin-bottom: 1.5rem; font-size: 1.1rem; }
+  .epigraph { margin: 2rem 0; font-style: italic; color: #555; }
+  .step { margin: 0.2rem 0 0.6rem 0; font-weight: 600; color: #444; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 2rem 0; }
+  .sidenote {
+    float: right;
+    clear: right;
+    margin-right: -55%;
+    width: 45%;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: #555;
+    position: relative;
+    padding-left: 0.5rem;
+    border-left: 1px solid #ddd;
+  }
+  .sidenote-number { font-size: 0.75rem; vertical-align: super; line-height: 0; color: #2563eb; cursor: default; }
+  .mission-link { background: #f0f7ff; padding: 0.5rem 1rem; border-radius: 4px; font-size: 0.9rem; margin: 1rem 0; }
+  @media (max-width: 1100px) {
+    .sidenote { float: none; margin: 0.5rem 0; width: auto; border-left: 2px solid #ddd; padding: 0.3rem 0.8rem; }
+  }
+  .callout {
+    background: #fff7ed;
+    border-left: 3px solid #f97316;
+    padding: 0.6rem 1rem;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+    border-radius: 0 4px 4px 0;
+  }
+  .callout strong { color: #c2410c; }
+  .exercise {
+    background: #f0fdf4;
+    border-left: 3px solid #22c55e;
+    padding: 0.8rem 1rem;
+    margin: 1.2rem 0;
+    border-radius: 0 4px 4px 0;
+  }
+  .exercise h3 { margin-top: 0; color: #15803d; }
+</style>
+</head>
+<body>
+
+<h1>Lesson 0001: Your First Rhino Plugin</h1>
+<p class="subtitle">Project anatomy and a running command</p>
+
+<div class="mission-link">
+  <strong>Tied to your mission:</strong> A serious plugin starts with a proper project. This lesson gets you from zero to a running command in Rhino.
+</div>
+
+<p class="epigraph">"The only way to learn a new programming language is by writing programs in it." — Dennis Ritchie</p>
+
+<h2>What you'll learn</h2>
+<ul>
+  <li>How to install the Rhino Visual Studio templates</li>
+  <li>The two essential classes every plugin needs: <code>PlugIn</code> and <code>Command</code></li>
+  <li>How to run your command inside Rhino</li>
+  <li>How Rhino discovers and loads plugins</li>
+</ul>
+
+<h2>Before you start</h2>
+<p>You need <strong>Visual Studio 2022+</strong> and <strong>Rhino 8</strong> installed. Since you have both, we're good.</p>
+
+<p>You'll also need the <strong>Rhino Visual Studio Templates</strong> extension. This is a VSIX that adds "RhinoCommon Plugin" as a project template.</p>
+
+<hr />
+
+<h2>The big picture</h2>
+
+<p>A Rhino plugin is a .NET class library (DLL) that Rhino loads at startup. Every plugin has exactly <strong>two required classes</strong>:</p>
+
+<ol>
+  <li><strong>PlugIn</strong> — the entry point. One per plugin. Manages lifecycle, document data, settings.</li>
+  <li><strong>Command</strong> — an invokable action. A plugin can have many commands.</li>
+</ol>
+
+<p>That's it. All the complexity (UI panels, file IO, geometry) builds on top of this foundation.</p>
+
+<div class="callout">
+  <strong>Key insight:</strong> Commands are <em>stateless</em>. They receive a <code>RhinoDoc</code>, do work, and return a <code>Result</code>. State lives in the document or in your <code>PlugIn</code> class.
+</div>
+
+<h2>Step 1: Install the VS template</h2>
+
+<p>If you haven't already, install the <strong>Rhino Visual Studio Templates</strong>:</p>
+
+<ol>
+  <li>In Visual Studio, go to <em>Extensions &gt; Manage Extensions</em></li>
+  <li>Search for "Rhino"</li>
+  <li>Install <strong>Rhino Visual Studio Templates</strong> by McNeel</li>
+  <li>Restart Visual Studio</li>
+</ol>
+
+<p class="sidenote">The template is available on the <a href="https://marketplace.visualstudio.com/items?itemName=McNeel.RhinoVisualStudioTemplates">VS Marketplace</a>. If you have difficulty with the in-IDE search, you can download it directly from the browser.</p>
+
+<h2>Step 2: Scaffold the project</h2>
+
+<ol>
+  <li><em>File &gt; New &gt; Project</em></li>
+  <li>Search for "Rhino" — select <strong>RhinoCommon Plug-In</strong></li>
+  <li>Name it <code>MyFirstPlugin</code> and choose a location</li>
+  <li>In the template dialog, accept defaults (General Utility, Rhino 8 target)</li>
+  <li>Click <em>Finish</em></li>
+</ol>
+
+<p>The template generates two key files:</p>
+<ul>
+  <li><code>MyFirstPluginPlugin.cs</code> — your <code>PlugIn</code> subclass</li>
+  <li><code>MyFirstPluginCommand.cs</code> — your first <code>Command</code> subclass</li>
+</ul>
+
+<h2>Step 3: Understand the generated code</h2>
+
+<h3>The PlugIn class</h3>
+<p>Open <code>MyFirstPluginPlugin.cs</code>. It will look like this:</p>
+
+<pre><code>// GUID and PlugInDescription attributes omitted for clarity
+public class MyFirstPluginPlugin : PlugIn
+{
+    protected override LoadOnStartup GetLoadOnStartup()
+        => LoadOnStartup.Whenever;
+
+    protected override Result OnLoad(ref string errorMessage)
+    {
+        // Initialisation — runs when Rhino loads the plugin
+        return Result.Success;
+    }
+}</code></pre>
+
+<p>Key points:</p>
+<ul>
+  <li><code>GetLoadOnStartup</code> tells Rhino <em>when</em> to load the plugin. <code>Whenever</code> means "when a command is invoked."</li>
+  <li><code>OnLoad</code> is your constructor-equivalent. Register panels, read settings, etc. here.</li>
+  <li>The <code>[Guid]</code> attribute on the class is how Rhino identifies your plugin across sessions and in <code>.3dm</code> files.</li>
+</ul>
+
+<h3>The Command class</h3>
+<p>Open <code>MyFirstPluginCommand.cs</code>. It will look like this:</p>
+
+<pre><code>public class MyFirstPluginCommand : Command
+{
+    public override string EnglishName => "MyFirstPlugin";
+
+    protected override Result RunCommand(RhinoDoc doc, RunMode mode)
+    {
+        RhinoApp.WriteLine("Hello from MyFirstPlugin!");
+        return Result.Success;
+    }
+}</code></pre>
+
+<p>Key points:</p>
+<ul>
+  <li><code>EnglishName</code> becomes the Rhino command name. Users type <code>MyFirstPlugin</code> at the command line.</li>
+  <li><code>RunCommand</code> receives the active <code>RhinoDoc</code> — <strong>never call <code>RhinoDoc.ActiveDoc</code></strong> in a command.</li>
+  <li><code>Result</code> tells Rhino whether to enable undo. <code>Result.Success</code> means "I did something undoable."</li>
+</ul>
+
+<div class="callout">
+  <strong>Common pitfall:</strong> If your command changes no document state, return <code>Result.Success</code> anyway. Returning <code>Result.Nothing</code> suppresses undo even if you <em>did</em> make changes.
+</div>
+
+<h2>Step 4: Run it</h2>
+
+<ol>
+  <li>Press <strong>F5</strong> (Debug &gt; Start Debugging)</li>
+  <li>Visual Studio builds the plugin and launches Rhino</li>
+  <li>In Rhino, type <code>MyFirstPlugin</code> at the command line and press Enter</li>
+  <li>You should see: <code>Hello from MyFirstPlugin!</code> in the command history</li>
+</ol>
+
+<p>That's it. You've built and run a Rhino plugin.</p>
+
+<h2>Step 5: Exercise — make it yours</h2>
+
+<div class="exercise">
+<h3>Modify the command</h3>
+<ol>
+  <li>Change <code>EnglishName</code> to something short (e.g., <code>"HelloRhino"</code>)</li>
+  <li>Use <code>RhinoApp.WriteLine</code> to print the current document's name (<code>doc.Name</code>) and the number of objects in it (<code>doc.Objects.Count</code>)</li>
+  <li>Use <code>doc.Objects.AddSphere(...)</code> to add a sphere at the origin with radius 5, then print its ID</li>
+  <li>Build, run, type your new command name</li>
+</ol>
+<p><strong>Hint:</strong> <code>Rhino.Geometry.Sphere</code> takes a <code>Point3d</code> center and a <code>double</code> radius.</p>
+</div>
+
+<p>If you get stuck, the answer is a single Rhino command away — just ask.</p>
+
+<h2>How Rhino discovers plugins</h2>
+
+<p>Rhino scans several folders for <code>.rhp</code> files (renamed DLLs):</p>
+<ul>
+  <li>Your plugin's output directory (during development, via the VS debugger)</li>
+  <li><code>%AppData%\McNeel\Rhinoceros\8.0\Plug-ins\</code> (per-user)</li>
+  <li><code>C:\Program Files\Rhino 8\Plug-ins\</code> (system-wide)</li>
+</ul>
+
+<p>When debugging with F5, Visual Studio copies the plugin to a special dev location and registers it with Rhino's plugin manager. No manual install needed during development.</p>
+
+<hr />
+
+<h2>Primary source</h2>
+
+<p>Read the official guide: <a href="https://developer.rhino3d.com/guides/rhinocommon/your-first-plugin-windows/">Your First Plugin (Windows) — developer.rhino3d.com</a>. It covers the same ground with more screenshots and nuance.</p>
+
+<h2>Reference</h2>
+<p>See the <a href="../GLOSSARY.md">Glossary</a> for definitions of <strong>PlugIn</strong>, <strong>Command</strong>, <strong>RhinoDoc</strong>, <strong>Result</strong>, and other terms used here.</p>
+
+<h2>What's next?</h2>
+<p>With the skeleton in place, the next lesson builds on this by adding a custom docking panel — your first piece of custom UI inside Rhino.</p>
+
+<h2>Still stuck?</h2>
+<p>Ask your teacher (that's me). Tell me what you tried, what happened, and what you expected. The fastest path to fluency is a tight feedback loop.</p>
+
+</body>
+</html>

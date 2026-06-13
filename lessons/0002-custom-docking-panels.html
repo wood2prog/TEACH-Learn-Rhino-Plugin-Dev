@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 0002: Custom Docking Panels</title>
+<style>
+  html { font-size: 15px; }
+  body {
+    font-family: "Georgia", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+    max-width: 720px;
+    margin: 4rem auto;
+    padding: 0 2rem;
+    color: #111;
+    line-height: 1.6;
+  }
+  h1 { font-size: 2.2rem; font-weight: 400; margin-top: 2.5rem; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.4rem; font-weight: 600; margin-top: 2.2rem; margin-bottom: 0.3rem; letter-spacing: 0.5px; }
+  h3 { font-size: 1.1rem; font-weight: 600; margin-top: 1.8rem; margin-bottom: 0.3rem; }
+  p, li { margin: 0.6rem 0; }
+  ul, ol { padding-left: 1.2rem; }
+  code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.85rem;
+    background: #f4f4f4;
+    padding: 2px 5px;
+    border-radius: 3px;
+  }
+  pre {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.8rem;
+    background: #f8f8f8;
+    border-left: 3px solid #ccc;
+    padding: 0.8rem 1rem;
+    overflow-x: auto;
+    line-height: 1.5;
+    margin: 1rem 0;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  blockquote {
+    border-left: 3px solid #e0e0e0;
+    padding-left: 1rem;
+    margin: 1.2rem 0;
+    color: #555;
+  }
+  a { color: #2563eb; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .subtitle { font-style: italic; color: #666; margin-top: -0.3rem; margin-bottom: 1.5rem; font-size: 1.1rem; }
+  .sidenote {
+    float: right; clear: right; margin-right: -55%; width: 45%;
+    font-size: 0.8rem; line-height: 1.4; color: #555;
+    padding-left: 0.5rem; border-left: 1px solid #ddd;
+  }
+  .callout {
+    background: #fff7ed; border-left: 3px solid #f97316;
+    padding: 0.6rem 1rem; margin: 1rem 0; font-size: 0.9rem;
+    border-radius: 0 4px 4px 0;
+  }
+  .callout strong { color: #c2410c; }
+  .exercise {
+    background: #f0fdf4; border-left: 3px solid #22c55e;
+    padding: 0.8rem 1rem; margin: 1.2rem 0; border-radius: 0 4px 4px 0;
+  }
+  .exercise h3 { margin-top: 0; color: #15803d; }
+  .tip {
+    background: #eff6ff; border-left: 3px solid #3b82f6;
+    padding: 0.6rem 1rem; margin: 1rem 0; font-size: 0.9rem;
+    border-radius: 0 4px 4px 0;
+  }
+  .mission-link {
+    background: #f0f7ff; padding: 0.5rem 1rem; border-radius: 4px; font-size: 0.9rem; margin: 1rem 0;
+  }
+  hr { border: none; border-top: 1px solid #ddd; margin: 2rem 0; }
+  @media (max-width: 1100px) {
+    .sidenote { float: none; margin: 0.5rem 0; width: auto; border-left: 2px solid #ddd; padding: 0.3rem 0.8rem; }
+  }
+  .diagram {
+    background: #fafafa; border: 1px solid #e0e0e0; padding: 1rem; margin: 1rem 0;
+    font-family: "SFMono-Regular", Consolas, monospace; font-size: 0.8rem; line-height: 1.6;
+    white-space: pre;
+  }
+</style>
+</head>
+<body>
+
+<h1>Lesson 0002: Custom Docking Panels</h1>
+<p class="subtitle">Bring your plugin to life with a dockable UI</p>
+
+<div class="mission-link">
+  <strong>Tied to your mission:</strong> Custom user interfaces are one of your primary goals. This lesson teaches the foundation — a dockable, live panel that reacts to the Rhino document.
+</div>
+
+<h2>What you'll learn</h2>
+<ul>
+  <li>The panel lifecycle: registration → creation → display → disposal</li>
+  <li>How to register a <code>UserControl</code> as a Rhino panel</li>
+  <li>How to add open/close commands for the panel</li>
+  <li>The EventWatcher pattern — keeping UI in sync with document changes</li>
+</ul>
+
+<div class="callout">
+  <strong>Prerequisite:</strong> You should have a working plugin project from <a href="0001-your-first-plugin.html">Lesson 0001</a>. If not, create one first.
+</div>
+
+<hr />
+
+<h2>The big picture</h2>
+
+<p>A Rhino panel is just a <code>System.Windows.Forms.UserControl</code> that Rhino wraps in a dockable container. The call chain:</p>
+
+<div class="diagram">YourPlugin.cs (OnLoad)
+  │
+  └─&gt; Panels.RegisterPanel(this, typeof(MyPanel), "Title", icon)
+        │
+        └─&gt; Rhino creates MyPanel instance when user opens the panel
+              │
+              └─&gt; MyPanel lives until Rhino closes (System panels)
+                    or document closes (PerDoc panels)</div>
+
+<p>You provide the content. Rhino provides the docking frame, tabbing, and visibility toggling.</p>
+
+<h2>Step 1: Add a UserControl to your project</h2>
+<p>In your existing plugin project from Lesson 0001:</p>
+<ol>
+  <li>Right-click the project → <em>Add → Class</em></li>
+  <li>Name it <code>MyPanel.cs</code></li>
+  <li>Replace the contents:</li>
+</ol>
+
+<pre><code>using System;
+using System.Windows.Forms;
+using Rhino;
+using Rhino.DocObjects;
+
+[System.Runtime.InteropServices.Guid("A1B2C3D4-E5F6-7890-ABCD-EF1234567890")]
+public class MyPanel : UserControl
+{
+    private ListBox _objectList;
+    private Label _countLabel;
+
+    public MyPanel()
+    {
+        InitializeControls();
+        SubscribeToDocumentEvents();
+    }
+
+    private void InitializeControls()
+    {
+        _countLabel = new Label
+        {
+            Text = "Objects: 0",
+            Dock = DockStyle.Top,
+            Height = 24,
+            Padding = new Padding(4)
+        };
+
+        _objectList = new ListBox
+        {
+            Dock = DockStyle.Fill
+        };
+
+        Controls.Add(_objectList);
+        Controls.Add(_countLabel);
+    }
+
+    private void SubscribeToDocumentEvents()
+    {
+        RhinoDoc.AddRhinoObject += OnObjectAdded;
+        RhinoDoc.DeleteRhinoObject += OnObjectDeleted;
+        RhinoDoc.ReplaceRhinoObject += OnObjectReplaced;
+    }
+
+    private void OnObjectAdded(object sender, RhinoObjectEventArgs e)
+    {
+        RefreshObjectList();
+    }
+
+    private void OnObjectDeleted(object sender, RhinoObjectEventArgs e)
+    {
+        RefreshObjectList();
+    }
+
+    private void OnObjectReplaced(object sender, RhinoReplaceObjectEventArgs e)
+    {
+        RefreshObjectList();
+    }
+
+    private void RefreshObjectList()
+    {
+        if (_objectList.InvokeRequired)
+        {
+            _objectList.Invoke(new Action(RefreshObjectList));
+            return;
+        }
+
+        var doc = RhinoDoc.ActiveDoc;
+        if (doc == null) return;
+
+        _objectList.Items.Clear();
+        foreach (var obj in doc.Objects)
+        {
+            _objectList.Items.Add(
+                $"{obj.Id}: {obj.ObjectType}");
+        }
+        _countLabel.Text = $"Objects: {doc.Objects.Count}";
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            RhinoDoc.AddRhinoObject -= OnObjectAdded;
+            RhinoDoc.DeleteRhinoObject -= OnObjectDeleted;
+            RhinoDoc.ReplaceRhinoObject -= OnObjectReplaced;
+        }
+        base.Dispose(disposing);
+    }
+}</code></pre>
+
+<p>Replace the <code>[Guid]</code> with your own — use <em>Tools → Create GUID</em> in Visual Studio.</p>
+
+<h2>Step 2: Register the panel in OnLoad</h2>
+<p>Open your <code>MyFirstPluginPlugin.cs</code> and add the registration call:</p>
+
+<pre><code>protected override LoadReturnCode OnLoad(ref string errorMessage)
+{
+    var panelType = typeof(MyPanel);
+    Rhino.UI.Panels.RegisterPanel(
+        this,                    // your PlugIn instance
+        panelType,               // the UserControl type
+        "My Panel",              // title shown in the tab
+        null                     // icon (optional)
+    );
+
+    return LoadReturnCode.Success;
+}</code></pre>
+
+<div class="callout">
+  <strong>Note:</strong> The <code>RegisterPanel</code> overload shown here registers a <em>per-document</em> panel (the default). A new panel instance is created each time a document is opened. Use <code>PanelType.System</code> for a panel that survives across documents.
+</div>
+
+<h2>Step 3: Add open/close commands (optional)</h2>
+<p>Panels are accessible from Rhino's <em>Panel</em> menu, but it's often useful to have commands. Add a new command class:</p>
+
+<pre><code>using Rhino.UI;
+
+[Guid("F1A2B3C4-D5E6-7890-ABCD-EF1234567890")]
+public class ToggleMyPanelCommand : Command
+{
+    public override string EnglishName => "ToggleMyPanel";
+
+    protected override Result RunCommand(RhinoDoc doc, RunMode mode)
+    {
+        var panelType = typeof(MyPanel);
+        if (Panels.IsPanelVisible(panelType.GUID))
+            Panels.ClosePanel(panelType.GUID);
+        else
+            Panels.OpenPanel(panelType.GUID);
+
+        return Result.Success;
+    }
+}</code></pre>
+
+<h2>Step 4: Run it</h2>
+<ol>
+  <li>Press <strong>F5</strong> to launch Rhino</li>
+  <li>Type <code>ToggleMyPanel</code> — your panel should appear</li>
+  <li>Add a sphere, box, or any geometry — the panel list updates live</li>
+  <li>Delete an object — the count decreases</li>
+</ol>
+
+<div class="tip">
+  <strong>Pro tip:</strong> You can also right-click any existing panel tab and check/uncheck "My Panel" in the context menu.
+</div>
+
+<h2>Understanding EventWatchers</h2>
+
+<p>The <code>RhinoDoc</code> class exposes static events for document changes. The three you need for a live panel:</p>
+
+<table style="width:100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem;">
+  <tr style="background: #f4f4f4;">
+    <th style="padding: 6px 8px; border: 1px solid #ddd; text-align: left;">Event</th>
+    <th style="padding: 6px 8px; border: 1px solid #ddd; text-align: left;">Fires when</th>
+  </tr>
+  <tr>
+    <td style="padding: 6px 8px; border: 1px solid #ddd;"><code>RhinoDoc.AddRhinoObject</code></td>
+    <td style="padding: 6px 8px; border: 1px solid #ddd;">An object is added to the document</td>
+  </tr>
+  <tr>
+    <td style="padding: 6px 8px; border: 1px solid #ddd;"><code>RhinoDoc.DeleteRhinoObject</code></td>
+    <td style="padding: 6px 8px; border: 1px solid #ddd;">An object is deleted</td>
+  </tr>
+  <tr>
+    <td style="padding: 6px 8px; border: 1px solid #ddd;"><code>RhinoDoc.ReplaceRhinoObject</code></td>
+    <td style="padding: 6px 8px; border: 1px solid #ddd;">An object is modified (moved, deformed, etc.)</td>
+  </tr>
+  <tr>
+    <td style="padding: 6px 8px; border: 1px solid #ddd;"><code>RhinoDoc.BeginOpenDocument</code></td>
+    <td style="padding: 6px 8px; border: 1px solid #ddd;">A new or existing document is being opened</td>
+  </tr>
+  <tr>
+    <td style="padding: 6px 8px; border: 1px solid #ddd;"><code>RhinoDoc.EndOpenDocument</code></td>
+    <td style="padding: 6px 8px; border: 1px solid #ddd;">Document is fully loaded — refresh your panel</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <strong>Threading trap:</strong> RhinoDoc events can fire from non-UI threads. Always check <code>Control.InvokeRequired</code> (WinForms) or <code>Dispatcher.CheckAccess()</code> (WPF) before touching UI controls in event handlers.
+</div>
+
+<h2>Exercise — make it interactive</h2>
+
+<div class="exercise">
+<h3>Add selection tracking</h3>
+<ol>
+  <li>Subscribe to <code>RhinoDoc.SelectObjects</code> and <code>RhinoDoc.DeselectObjects</code> events</li>
+  <li>When the selection changes, update a label in your panel with the count: <code>"Selected: N"</code></li>
+  <li>In the listbox, prefix selected objects with <code>"* "</code></li>
+</ol>
+</div>
+
+<h2>WPF and Eto alternatives</h2>
+<p>This lesson uses Windows Forms (simple, Windows-only). Alternatives available:</p>
+<ul>
+  <li><strong>WPF</strong> — Same <code>RegisterPanel</code> call, but your control derives from <code>System.Windows.Controls.UserControl</code>. Richer styling, data binding. Windows-only.</li>
+  <li><strong>Eto</strong> — Cross-platform (Windows + Mac). Derive from <code>Eto.Forms.Panel</code>. Use when targeting both platforms.</li>
+</ul>
+
+<hr />
+
+<h2>Primary source</h2>
+<p>
+  <a href="https://developer.rhino3d.com/guides/rhinocommon/tabbed-panels/">Tabbed Panels Guide — developer.rhino3d.com</a><br>
+  <a href="https://developer.rhino3d.com/guides/rhinocommon/event-watchers/">Event Watchers Guide — developer.rhino3d.com</a>
+</p>
+
+<h2>Reference</h2>
+<p>
+  See <a href="../GLOSSARY.md">Glossary</a> for <strong>Panel</strong>, <strong>EventWatcher</strong>, <strong>Eto</strong>.<br>
+  Previous: <a href="0001-your-first-plugin.html">Lesson 0001 — Your First Plugin</a>.
+</p>
+
+<h2>What's next?</h2>
+<p>Lesson 0003: Plugin User Data — saving your plugin's state inside the <code>.3dm</code> file so it survives reopen.</p>
+
+<h2>Ask away</h2>
+<p>If the panel doesn't show, the GUID is wrong, or the events aren't firing — tell me what you see. Tight feedback loop = fast learning.</p>
+
+</body>
+</html>
